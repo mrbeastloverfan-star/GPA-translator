@@ -1,15 +1,9 @@
 {
-  "name": "나의 웹앱 이름",
-  "short_name": "앱 이름",
-  "start_url": "index.html",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
   "icons": [
-    { "src": "favicon.ico", "type": "image/x-icon", "sizes": "16x16 32x32" },
-    { "src": "icon-192.png", "type": "image/png", "sizes": "192x192" },
-    { "src": "icon-512.png", "type": "image/png", "sizes": "512x512" },
-    { "src": "icon-192-maskable.png", "type": "image/png", "sizes": "192x192", "purpose": "maskable" },
-    { "src": "icon-512-maskable.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
+    { "src": "favicon.ico", "type": "image/x-icon", "sizes": "16x16 32x32" }, [cite: 1]
+    { "src": "icon-192.png", "type": "image/png", "sizes": "192x192" }, [cite: 1]
+    { "src": "icon-512.png", "type": "image/png", "sizes": "512x512" }, [cite: 1]
+    { "src": "icon-192-maskable.png", "type": "image/png", "sizes": "192x192", "purpose": "maskable" }, [cite: 1, 2]
+    { "src": "icon-512-maskable.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" } [cite: 1]
   ]
 }
