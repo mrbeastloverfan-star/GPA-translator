@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="입시진단">
+    <title>입시 진단</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700;800;900&display=swap');
+        body { font-family: 'Pretendard', sans-serif; letter-spacing: -0.02em; background-color: #f8fafc; color: #1e293b; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        input[type="range"] { -webkit-appearance: none; width: 100%; height: 8px; background: #e2e8f0; border-radius: 12px; outline: none; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; background: #fff; border: 6px solid #4f46e5; border-radius: 50%; box-shadow: 0 3px 8px rgba(79, 70, 229, 0.3); cursor: pointer; }
+        .grade-input { width: 70px; padding: 8px 0; border: 2px solid #e2e8f0; border-radius: 12px; font-weight: 800; text-align: center; color: #4f46e5; outline: none; transition: border-color 0.2s; }
+        .grade-input:focus { border-color: #4f46e5; }
+        .filter-btn.active { background-color: #1e293b !important; color: #fff !important; border-color: #1e293b !important; }
+        .alpha-btn.active { background-color: #4f46e5 !important; color: #fff !important; border-color: #4f46e5 !important; }
+        .card-enter { animation: fadeInUp 0.4s ease-out forwards; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .loader { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #4f46e5; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="antialiased">
+    <div id="app" class="max-w-lg mx-auto min-h-screen flex flex-col pb-32">
+        <div id="initial-loader" class="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center transition-opacity duration-500">
+            <div class="loader mb-6"></div>
+            <p class="text-sm font-black text-slate-500 animate-pulse">데이터를 불러오고 있습니다...</p>
+        </div>
+        <header class="px-5 pt-8 pb-2">
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg font-black text-xl">PRO</div>
+                    <h1 class="text-xl font-black tracking-tight text-slate-900">맞춤 진단 리포트</h1>
+                </div>
+                <div class="text-[10px] font-black text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full border border-indigo-100" id="db-count">연결 중</div>
+            </div>
+            <div class="bg-slate-900 rounded-[2rem] p-7 text-white shadow-2xl relative overflow-hidden mb-6">
+                <div class="flex justify-between items-end relative z-10">
+                    <div>
+                        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 opacity-80">9등급제 환산 성적</p>
+                        <div class="flex items-baseline gap-1.5">
+                            <span id="my-grade" class="text-5xl font-black tabular-nums tracking-tighter">1.70</span>
+                            <span class="text-sm font-bold text-indigo-400">등급</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] font-bold text-slate-500 mb-1.5">보정</p>
+                        <span id="alpha-val" class="inline-block bg-white/10 px-3 py-1.5 rounded-xl text-xs font-black text-indigo-300">±0.0</span>
+                    </div>
+                </div>
+                <div class="absolute -right-12 -top-12 w-48 h-48 bg-indigo-500/20 rounded-full blur-[60px]"></div>
+            </div>
+        </header>
+        <section id="main-ui" class="px-5 space-y-5 opacity-0 transition-opacity duration-500">
+            <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200">
+                <div class="flex justify-between items-center mb-5">
+                    <h2 class="text-xs font-black text-slate-800 tracking-tighter uppercase">GPA (5등급제 기준)</h2>
+                    <div class="flex items-center gap-2">
+                        <input type="number" id="grade-num-input" min="1.0" max="5.0" step="0.01" value="1.00" class="grade-input" oninput="syncFromNumber(this.value)">
+                        <span class="text-sm font-bold text-slate-400">등급</span>
+                    </div>
+                </div>
+                <input type="range" id="unified-slider" min="1.0" max="5.0" step="0.01" value="1.0" oninput="syncFromSlider(this.value)">
+                <div class="flex justify-between mt-2 text-[10px] font-bold text-slate-400">
+                    <span>1.0등급</span><span>3.0등급</span><span>5.0등급</span>
+                </div>
+            </div>
+            <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200 space-y-5">
+                <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                    <button onclick="setCategory('전체')" class="filter-btn active shrink-0 px-5 py-2.5 rounded-xl text-xs font-bold border border-slate-100 bg-slate-50 text-slate-500">전체</button>
+                    <button onclick="setCategory('의학')" class="filter-btn shrink-0 px-5 py-2.5 rounded-xl text-xs font-bold border border-slate-100 bg-slate-50 text-slate-500">의학</button>
+                    <button onclick="setCategory('공학')" class="filter-btn shrink-0 px-5 py-2.5 rounded-xl text-xs font-bold border border-slate-100 bg-slate-50 text-slate-500">공학</button>
+                    <button onclick="setCategory('자연')" class="filter-btn shrink-0 px-5 py-2.5 rounded-xl text-xs font-bold border border-slate-100 bg-slate-50 text-slate-500">자연</button>
+                    <button onclick="setCategory('사회')" class="filter-btn shrink-0 px-5 py-2.5 rounded-xl text-xs font-bold border border-slate-100 bg-slate-50 text-slate-500">사회</button>
+                    <button onclick="setCategory('인문')" class="filter-btn shrink-0 px-5 py-2.5 rounded-xl text-xs font-bold border border-slate-100 bg-slate-50 text-slate-500">인문</button>
+                    <button onclick="setCategory('교육')" class="filter-btn shrink-0 px-5 py-2.5 rounded-xl text-xs font-bold border border-slate-100 bg-slate-50 text-slate-500">교육</button>
+                    <button onclick="setCategory('기타')" class="filter-btn shrink-0 px-5 py-2.5 rounded-xl text-xs font-bold border border-slate-100 bg-slate-50 text-slate-500">기타</button>
+                </div>
+                <div class="flex gap-2.5">
+                    <button onclick="updateAlpha(0.1)" class="alpha-btn flex-1 py-3 rounded-xl text-xs font-black border border-slate-100 bg-slate-50 text-slate-400">±0.1</button>
+                    <button onclick="updateAlpha(0.3)" class="alpha-btn flex-1 py-3 rounded-xl text-xs font-black border border-slate-100 bg-slate-50 text-slate-400">±0.3</button>
+                    <button onclick="updateAlpha(0.5)" class="alpha-btn flex-1 py-3 rounded-xl text-xs font-black border border-slate-100 bg-slate-50 text-slate-400">±0.5</button>
+                    <button onclick="updateAlpha(0)" class="alpha-btn active flex-1 py-3 rounded-xl text-xs font-black border border-slate-100 bg-slate-50 text-slate-400">OFF</button>
+                </div>
+            </div>
+            <div class="space-y-3">
+                <div class="relative">
+                    <i class="fas fa-search absolute left-5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="search-input" placeholder="대학 또는 학과 검색" class="block w-full pl-12 pr-6 py-5 bg-white border border-slate-200 rounded-[1.5rem] text-base font-bold text-slate-800 focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all">
+                </div>
+                <div class="flex items-center justify-between px-2">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                        <p class="text-[11px] font-black text-slate-400">검색 결과 <span id="result-count" class="text-indigo-600">0</span>건</p>
+                    </div>
+                    <p id="filter-status" class="text-[10px] font-bold text-slate-300">전체 학과</p>
+                </div>
+            </div>
+            <div id="data-list" class="space-y-4 pt-2"></div>
+        </section>
+        <footer id="nav-footer" class="fixed bottom-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-t border-slate-100 p-4 pb-safe opacity-0 transition-opacity duration-500">
+            <div class="max-w-lg mx-auto flex items-center justify-between px-2">
+                <button id="prev-btn" class="w-12 h-12 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-slate-600 disabled:opacity-30"><i class="fas fa-arrow-left"></i></button>
+                <div class="px-6 py-2.5 bg-slate-900 rounded-2xl text-center shadow-lg">
+                    <span class="text-xs font-black text-white tabular-nums" id="page-num">0 / 0</span>
+                </div>
+                <button id="next-btn" class="w-12 h-12 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-slate-600 disabled:opacity-30"><i class="fas fa-arrow-right"></i></button>
+            </div>
+        </footer>
+    </div>
+    <script>
+        const GITHUB_URL = "https://raw.githubusercontent.com/kangseok-hub/converter/main/src/data/rawCSV.ts";
+        let allData = [], filteredData = [], userFiveGrade = 1.0, alpha = 0, currentCategory = "전체", currentPage = 1;
+        const itemsPerPage = 20;
+        const gradePoints = [{five:1,nine:1.7},{five:2,nine:3},{five:3,nine:5},{five:4,nine:7.5},{five:5,nine:9}];
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch(GITHUB_URL);
+                if (!response.ok) throw new Error("Data fetch error");
+                const rawText = await response.text();
+                const csvData = rawText.includes('`') ? rawText.split('`')[1] : rawText;
+                processCSV(csvData);
+                document.getElementById('initial-loader').classList.add('opacity-0');
+                setTimeout(() => {
+                    document.getElementById('initial-loader').remove();
+                    document.getElementById('main-ui').classList.remove('opacity-0');
+                    document.getElementById('nav-footer').classList.remove('opacity-0');
+                }, 500);
+            } catch (error) {
+                console.error(error);
+                document.getElementById('initial-loader').innerHTML = `<p class="text-rose-500 font-bold">데이터를 불러올 수 없습니다.</p>`;
+            }
+        });
+        function processCSV(csv) {
+            const lines = csv.trim().split('\n');
+            allData = lines.slice(1).map(line => {
+                const cols = line.split(',');
+                if (cols.length < 5) return null;
+                let univName = cols[0].trim();
+                let campusName = cols[1].trim();
+                if (univName.includes('(')) {
+                    const match = univName.match(/(.+)\((.+)\)/);
+                    if (match) { univName = match[1]; campusName = match[2]; }
+                }
+                const avg = parseFloat(cols[4]);
+                if (isNaN(avg)) return null;
+                return { univ: univName, campus: campusName, type: cols[2].trim(), major: cols[3].trim(), category: classifyMajor(cols[3].trim()), avg: avg };
+            }).filter(d => d !== null);
+            allData.sort((a, b) => a.avg - b.avg);
+            document.getElementById('db-count').textContent = `${allData.length.toLocaleString()} 건 로드됨`;
+            render();
+        }
+        function classifyMajor(major) {
+            const m = major.replace(/\s/g, '');
+            if (/의예|의학|치의|한의|수의|약학|제약|간호|보건|방사선|물리치료/.test(m)) return "의학";
+            if (/공학|소프트|컴퓨터|정보|전기|전자|기계|반도체|인공지능|데이터|시스템|IT|건축공/.test(m)) return "공학";
+            if (/수학|물리|화학|생명|환경|바이오|과학|융합과학|산림|건축학/.test(m)) return "자연";
+            if (/경영|경제|사회|행정|정치|외교|미디어|심리|복지|광고|언론|미래/.test(m)) return "사회";
+            if (/교육|초등|윤리|사범|유아|교직/.test(m)) return "교육";
+            if (/국어|영어|독어|프랑스|일어|중어|어문|역사|철학|어학|인문/.test(m)) return "인문";
+            return "기타";
+        }
+        function syncFromSlider(val) { userFiveGrade = parseFloat(val); document.getElementById('grade-num-input').value = userFiveGrade.toFixed(2); render(); }
+        function syncFromNumber(val) { let num = parseFloat(val); if (isNaN(num)) return; if (num < 1.0) num = 1.0; if (num > 5.0) num = 5.0; userFiveGrade = num; document.getElementById('unified-slider').value = num; render(); }
+        function convertToNineGrade(five) {
+            if (five <= 1.0) return 1.7; if (five >= 5.0) return 9.0;
+            let i = 0; while (gradePoints[i+1].five < five) i++;
+            const p1 = gradePoints[i], p2 = gradePoints[i+1];
+            return parseFloat((p1.nine + ((five - p1.five) / (p2.five - p1.five)) * (p2.nine - p1.nine)).toFixed(2));
+        }
+        function updateAlpha(val) {
+            alpha = val;
+            document.getElementById('alpha-val').textContent = val === 0 ? "±0.0" : `±${val.toFixed(1)}`;
+            document.querySelectorAll('.alpha-btn').forEach(btn => { const t = btn.textContent; btn.classList.toggle('active', (val===0.1&&t.includes('0.1'))||(val===0.3&&t.includes('0.3'))||(val===0.5&&t.includes('0.5'))||(val===0&&t.includes('OFF'))); });
+            render();
+        }
+        function setCategory(cat) {
+            currentCategory = cat;
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.toggle('active', btn.textContent === cat));
+            document.getElementById('filter-status').textContent = cat === "전체" ? "전체 학과" : `${cat} 관련 학과`;
+            currentPage = 1; render();
+        }
+        function render() {
+            if (allData.length === 0) return;
+            const finalNine = parseFloat(convertToNineGrade(userFiveGrade).toFixed(2));
+            document.getElementById('my-grade').textContent = finalNine.toFixed(2);
+            const search = document.getElementById('search-input').value.toLowerCase();
+            filteredData = allData.filter(d => {
+                const matchesSearch = d.univ.toLowerCase().includes(search) || d.major.toLowerCase().includes(search) || d.campus.toLowerCase().includes(search);
+                const matchesCategory = currentCategory === "전체" || d.category === currentCategory;
+                return matchesSearch && matchesCategory && (finalNine - d.avg) <= (1.0 + alpha);
+            });
+            document.getElementById('result-count').textContent = filteredData.length.toLocaleString();
+            const totalPages = Math.max(1, Math.ceil(filteredData.length / itemsPerPage));
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
+            const currentItems = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+            const container = document.getElementById('data-list');
+            const catStyles = { "의학":"bg-rose-50 text-rose-600","공학":"bg-indigo-50 text-indigo-600","자연":"bg-emerald-50 text-emerald-600","사회":"bg-amber-50 text-amber-600","인문":"bg-purple-50 text-purple-600","교육":"bg-blue-50 text-blue-600","기타":"bg-slate-100 text-slate-500" };
+            container.innerHTML = currentItems.length ? currentItems.map((item, idx) => {
+                const diff = finalNine - item.avg;
+                let status = { label:"소신", text:"text-amber-600", bg:"bg-amber-50", border:"border-amber-200", icon:"fa-fire" };
+                if (diff <= (-0.3 - alpha)) status = { label:"안정", text:"text-emerald-600", bg:"bg-emerald-50", border:"border-emerald-200", icon:"fa-circle-check" };
+                else if (diff <= (0.3 + alpha)) status = { label:"적정", text:"text-indigo-600", bg:"bg-indigo-50", border:"border-indigo-200", icon:"fa-bullseye" };
+                const isMain = item.campus === "본교" || item.campus === "";
+                const campusBadge = isMain ? "" : `<span class="shrink-0 px-2 py-0.5 rounded-lg text-[10px] font-black bg-orange-50 text-orange-600 border border-orange-100">${item.campus}</span>`;
+                return `<div class="card-enter bg-white rounded-3xl border border-slate-200 p-5 shadow-sm" style="animation-delay:${idx*0.05}s">
+                    <div class="flex justify-between items-start gap-4 mb-3">
+                        <div class="flex-grow min-w-0">
+                            <div class="flex items-center gap-2 mb-1.5 flex-wrap"><h3 class="text-lg font-black text-slate-900 truncate">${item.univ}</h3>${campusBadge}</div>
+                            <div class="flex items-center gap-2"><span class="px-2 py-0.5 rounded-md text-[9px] font-black ${catStyles[item.category]||'bg-slate-100 text-slate-400'}">${item.category}</span><p class="text-[11px] font-bold text-slate-400 truncate">${item.major}</p></div>
+                        </div>
+                        <span class="shrink-0 px-3 py-1.5 rounded-xl text-[11px] font-black border ${status.bg} ${status.text} ${status.border}"><i class="fas ${status.icon} mr-1"></i> ${status.label}</span>
+                    </div>
+                    <div class="flex items-center justify-between pt-4 border-t border-slate-50">
+                        <span class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-50 text-slate-400">${item.type}</span>
+                        <div class="text-right"><p class="text-[9px] font-bold text-slate-300">평균</p><span class="text-xl font-black text-slate-800">${item.avg.toFixed(2)}</span></div>
+                    </div>
+                </div>`;
+            }).join('') : `<div class="py-20 text-center opacity-40 font-bold">진단 결과가 없습니다.</div>`;
+            document.getElementById('page-num').textContent = `${currentPage} / ${totalPages}`;
+            document.getElementById('prev-btn').disabled = currentPage <= 1;
+            document.getElementById('next-btn').disabled = currentPage >= totalPages;
+        }
+        document.getElementById('search-input').oninput = () => { currentPage = 1; render(); };
+        document.getElementById('prev-btn').onclick = () => { if (currentPage > 1) { currentPage--; render(); window.scrollTo(0,0); } };
+        document.getElementById('next-btn').onclick = () => { if (currentPage < Math.ceil(filteredData.length / itemsPerPage)) { currentPage++; render(); window.scrollTo(0,0); } };
+    </script>
+</body>
+</html>
